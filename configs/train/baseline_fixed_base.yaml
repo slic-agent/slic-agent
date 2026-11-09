@@ -1,0 +1,22 @@
+# Fixed-base baseline: one fixed base trajectory, no online continuation (continuation_policy=fixed_base).
+# One base trajectory per group is rolled out first; every turn's G candidates branch from its fixed
+# history. The full history in the prompt, joint advantage normalisation and dynamic filtering;
+# the longer prompts need the larger context settings below.
+kind: rl
+experiment_name: fixed_base_qwen3.5_4b
+model_path: null   # REQUIRED: your own SFT checkpoint (HF format), see scripts/train/sft/README.md; the paper's SFT inits are not released
+dataset_dir: data/standard
+num_gpus: 2
+reward_preset: sparse_constraint_done_4spec_hint
+overrides:
+  - algorithm.slic.continuation_policy=fixed_base
+  - algorithm.slic.continuation_valid_only=true
+  - env.history_length=8
+  - algorithm.step_wise.advantage_mode=joint
+  - algorithm.step_wise.sepvp_weight_normalize=true
+  - algorithm.step_wise.skip_degenerate_groups=true
+  - actor_rollout_ref.actor.ppo_mini_batch_size=128
+  - data.max_prompt_length=18000
+  - actor_rollout_ref.actor.ppo_max_token_len_per_gpu=24000
+  - actor_rollout_ref.rollout.max_model_len=20048
+  - actor_rollout_ref.rollout.max_num_batched_tokens=20048

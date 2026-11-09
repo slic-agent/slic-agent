@@ -1,0 +1,8 @@
+# Domain-knowledge ablation: no validity gates in the reward and no optimisation hint in the prompt.
+kind: rl
+experiment_name: abl_no_gates_qwen3.5_4b
+model_path: null   # REQUIRED: your own SFT checkpoint (HF format), see scripts/train/sft/README.md; the paper's SFT inits are not released
+dataset_dir: data/standard
+num_gpus: 2
+reward_preset: sparse_constraint_done_4spec_nohint_tolalign_contoptstop_nogate
+overrides: []

@@ -1,0 +1,22 @@
+# MT-GRPO baseline (arXiv 2505.11821) with per-state (tree) rollouts: K = 4 turns; at turns 1-3 every state is sampled
+# G = 4 times, turn 4 takes one continuation, so a task yields up to 4 + 16 + 64 + 64 = 148 generated turns and 64 trajectories
+# (env.rollout.n = G^(K-1) = 64 slots per task), 4 tasks per step; every generated turn is trained once.
+# Advantage (their Eq. 3-5): A^I = z-score of the turn reward among the G siblings, A^O = z-score of the outcome over the task's
+# trajectories; a node's advantage is A^I + alpha * mean(children A) with alpha = 1, a terminal node takes A^O.
+# Rewards: R^I = the four-spec turn score SLIC uses (perf_score_post, -0.1 for an invalid action); R^O = the same score at the
+# trajectory's final state (outcome_source: turn_reward). Episodes end at the first success. Evaluate with 8 turns like every method.
+kind: rl
+experiment_name: mt_grpo_tree_qwen3.5_4b
+model_path: null   # REQUIRED: your own SFT checkpoint (HF format), see scripts/train/sft/README.md; the paper's SFT inits are not released
+dataset_dir: data/standard
+num_gpus: 2
+overrides:
+  - algorithm.adv_estimator=mt_grpo_tree
+  - env.rollout.n=64                             # env slots per task = G^(K-1), K = env.max_steps = 4 (scripts/train/run_slic.sh)
+  - data.train_batch_size=4                      # tasks per step
+  - algorithm.step_wise.target_train_rows=0     # train every generated turn (no row target)
+  - algorithm.step_wise.advantage_mode=joint    # the launcher's separate_validity_perf is valid only with adv_estimator=slic
+  - algorithm.step_wise.exact_rows_refill=false
+  - algorithm.mt_grpo.branching=4
+  - algorithm.mt_grpo.alpha=1.0
+  - algorithm.mt_grpo.outcome_source=turn_reward

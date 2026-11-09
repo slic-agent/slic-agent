@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.egg-info/
+/build/
+/dist/
+.pytest_cache/
+# run outputs and downloads at the repository root (slic data, slic train / eval, model exports)
+/outputs/
+/data/
+/models/
+/wandb/
+*.log
+/tmp/
+.cache/

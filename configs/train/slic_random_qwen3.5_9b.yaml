@@ -1,0 +1,7 @@
+# Main method on Qwen3.5-9B (cross-model row): identical to slic_random.yaml, 4 GPUs.
+kind: rl
+experiment_name: slic_random_qwen3.5_9b
+model_path: null   # REQUIRED: your own SFT checkpoint (HF format), see scripts/train/sft/README.md; the paper's SFT inits are not released
+dataset_dir: data/standard
+num_gpus: 4
+overrides: []

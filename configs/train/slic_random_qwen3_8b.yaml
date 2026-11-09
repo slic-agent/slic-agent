@@ -1,0 +1,27 @@
+# Main method on Qwen3-8B (cross-model row). Qwen3 runtime differences: standard padding-removal
+# path (the single-sequence path is for Qwen3.5 models only, monkey_patch.check_qwen35_training_mode), dynamic micro-batching, vLLM V1 engine, Qwen3 sampling (top_k 20 / top_p 0.95), a small
+# KL penalty and a tighter rollout-logprob guard.
+kind: rl
+experiment_name: slic_random_qwen3_8b
+model_path: null   # REQUIRED: your own SFT checkpoint (HF format), see scripts/train/sft/README.md; the paper's SFT inits are not released
+dataset_dir: data/standard
+num_gpus: 2
+env:
+  VLLM_USE_V1: "1"
+overrides:
+  - actor_rollout_ref.rollout.gpu_memory_utilization=0.45
+  - actor_rollout_ref.rollout.enable_chunked_prefill=false
+  - actor_rollout_ref.actor.ppo_max_token_len_per_gpu=24000
+  - actor_rollout_ref.actor.use_kl_loss=True
+  - actor_rollout_ref.actor.kl_loss_coef=0.001
+  - actor_rollout_ref.actor.clip_ratio_high=0.2
+  - actor_rollout_ref.rollout.top_k=20
+  - actor_rollout_ref.rollout.top_p=0.95
+  - algorithm.rollout_logprob_guard.mean_limit=0.1
+  - algorithm.rollout_logprob_guard.p99_limit=0.5
+  - actor_rollout_ref.actor.use_dynamic_bsz=true
+  - actor_rollout_ref.rollout.log_prob_use_dynamic_bsz=true
+  - actor_rollout_ref.ref.log_prob_use_dynamic_bsz=true
+  - actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=4
+  - actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=4
+  - actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=2

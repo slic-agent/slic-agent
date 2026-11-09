@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "slic-agent"
+version = "0.1.0"
+description = "SLIC: turn-level reinforcement learning with online continuation for LLM-based analog circuit optimization"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+urls = { Repository = "https://github.com/slic-agent/slic-agent", "Hugging Face" = "https://huggingface.co/slic-agent" }
+dependencies = [
+    "accelerate",
+    "cachetools",
+    "codetiming",
+    "datasets",
+    "dill",
+    "fastapi",
+    "gymnasium",
+    "huggingface_hub",
+    "hydra-core",
+    "numpy",
+    "omegaconf",
+    "openai",
+    "packaging>=20.0",
+    "pandas",
+    "peft",
+    "pyarrow>=19.0.0",
+    "pybind11",
+    "pydantic>=2",
+    "pylatexenc",
+    "pyyaml",
+    "ray",
+    "safetensors",
+    "tensordict",
+    "torchdata",
+    "transformers",
+    "uvicorn",
+    "wandb",
+    "qwen-vl-utils",
+]
+
+[project.optional-dependencies]
+gpu = ["vllm==0.19.1", "flash-attn==2.8.1"]
+liger = ["liger-kernel"]   # only for actor_rollout_ref.model.use_liger=true (off in every shipped config)
+sglang = ["sglang[all]==0.4.6.post5", "torch-memory-saver>=0.0.5"]   # alternative rollout engine, see requirements-sglang.txt
+
+[project.scripts]
+slic = "slic.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["slic*", "verl*", "agent_system*", "circuit*", "web_ui*"]
+exclude = ["tests*", "configs*", "docs*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "*.yml", "*.jinja", "*.html", "*.js", "*.css", "*.scs", "*.dc", "*.json", "*.txt"]
+
+[tool.ruff]
+line-length = 300

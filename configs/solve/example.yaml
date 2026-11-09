@@ -1,0 +1,19 @@
+# One optimization episode, streamed turn by turn. Serve the checkpoint first, e.g.
+#   vllm serve models/my-slic-random --served-model-name slic-random --port 8000 --limit-mm-per-prompt '{"image":0,"video":0}'
+# (Qwen3.5 checkpoints: text weights only under the multimodal config, hence the image / video limit of 0)
+task:
+  tasks: data/standard/test_iid.parquet
+  index: 0
+  # goal: {gain_min: 60, power_max: 400, bandwidth_min: 0.05, phase_margin_min_deg: 45}   # override the task's specs
+model:
+  provider: local
+  base_url: http://127.0.0.1:8000/v1
+  name: slic-random
+  temperature: 0.7      # sampling; omit a key for the evaluation protocol's value (top_p 0.9, max_tokens 2048)
+  # top_p: 0.9
+  # max_tokens: 2048
+  # seed: 0             # unset: every run samples afresh; set: a local vLLM server repeats the episode exactly
+max_turns: 8
+reward_preset: sparse_constraint_done_4spec_hint
+tech_node: 65nm
+print_netlist: false

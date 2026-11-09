@@ -1,0 +1,9 @@
+# SLIC-Random + dynamic group filtering; episodes end at the first success (as the paper run did). Mini-batch 128.
+kind: rl
+experiment_name: slic_random_filter_qwen3.5_4b
+model_path: null   # REQUIRED: your own SFT checkpoint (HF format), see scripts/train/sft/README.md; the paper's SFT inits are not released
+dataset_dir: data/standard
+num_gpus: 2
+overrides:
+  - algorithm.step_wise.skip_degenerate_groups=true
+  - actor_rollout_ref.actor.ppo_mini_batch_size=128

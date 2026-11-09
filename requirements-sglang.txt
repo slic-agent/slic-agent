@@ -1,0 +1,16 @@
+# SGLang rollout backend, evaluation only (rollout.name=sglang in a configs/eval/*.yaml `overrides:` list).
+# verl's SGLang integration as inherited (verl/workers/rollout/sglang_rollout, verl/workers/sharding_manager/fsdp_sglang.py).
+# It is written against sglang 0.4.6.post5, whose wheels need torch 2.6: install it in its own environment, not next to the
+# vLLM stack of requirements.txt. No reported run used this backend; it was smoke-tested only (see verl/workers/rollout/sglang_rollout/README.md).
+# Install order matters: `pip install -r requirements-sglang.txt`, then `pip freeze > constraints.txt` and
+# `pip install -e . -c constraints.txt`; a plain `pip install -e .` resolves the unpinned dependencies and replaces torch 2.6
+# with the newest release, after which flash-attn fails to import (undefined symbol).
+torch==2.6.0
+sglang[all]==0.4.6.post5
+torch-memory-saver>=0.0.5
+compressed-tensors==0.9.3   # the release sglang[all] pulls in needs a newer transformers than sglang's own 4.51 pin
+uvloop==0.21.0   # sglang 0.4.6 installs the uvloop event-loop policy; uvloop >= 0.23 makes its get_event_loop() raise instead of creating a loop
+flash-attn==2.7.4.post1   # newer wheels are built with the cxx11 ABI and do not import against the torch 2.6 pip wheel
+gymnasium
+scipy
+cachetools

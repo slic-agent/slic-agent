@@ -1,0 +1,12 @@
+# Supervised warm-up on multi-turn optimization trajectories (parquet with a `messages` column, see
+# scripts/train/sft/README.md). The paper's teacher corpus is not released; point this at your own.
+kind: sft
+experiment_name: sft_qwen3.5_4b
+base_model: Qwen/Qwen3.5-4B
+train_file: data/sft/train.parquet
+val_file: data/sft/test.parquet
+num_gpus: 2
+chat_template: scripts/train/sft/chat_template_think_prefill.jinja   # <think>-prefill template used for the paper's checkpoints
+# scripts/train/sft/run_sft.sh's command line holds the paper's SFT settings (12288-token sequences, batch 8 with 2 sequences per GPU
+# per micro-batch, lr 1e-5, 4 epochs); list hydra overrides here to change them, e.g. trainer.total_epochs=2.
+overrides: []

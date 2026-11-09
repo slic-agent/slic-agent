@@ -1,0 +1,9 @@
+# Advantage-normalisation ablation, separate validity/performance channels, continued optimisation
+# after success (pair with configs/train/abl_joint_norm.yaml; the two differ in algorithm.step_wise.advantage_mode only).
+kind: rl
+experiment_name: abl_separate_norm_qwen3.5_4b
+model_path: null   # REQUIRED: your own SFT checkpoint (HF format), see scripts/train/sft/README.md; the paper's SFT inits are not released
+dataset_dir: data/standard
+num_gpus: 2
+reward_preset: sparse_constraint_done_4spec_hint_tolalign_contopt
+overrides: []   # advantage_mode=separate_validity_perf is the launcher's setting

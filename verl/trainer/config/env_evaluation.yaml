@@ -1,0 +1,235 @@
+trainer:
+  nnodes: 1
+  n_gpus_per_node: 1
+  device: cuda
+
+model:
+  path: ~/models/Qwen2.5-1.5B-Instruct  # Your pretrained model
+  use_shm: false
+
+data:
+  tokenizer: null
+  use_shm: false
+  train_files: []  # Not used for evaluation
+  val_files: 
+    - data/standard/validation.parquet
+  prompt_key: prompt
+  reward_fn_key: data_source
+  train_batch_size: 1  # Not used
+  val_batch_size: 11  # Number of parallel episodes (matches dataset size)
+  max_prompt_length: 8192
+  max_response_length: 1024
+  return_raw_input_ids: false
+  return_raw_chat: true  # Required for multi-turn rollout
+  return_full_prompt: false
+  shuffle: false
+  filter_overlong_prompts: false
+  filter_overlong_prompts_workers: 1
+  truncation: left
+  image_key: images
+  video_key: videos
+  trust_remote_code: false
+  drop_last_batch: true  # Drop incomplete last batch to match pre-allocated environment count
+  custom_cls:
+    path: null
+    name: null
+
+env:
+  env_name: circuitop
+  seed: 42
+  max_steps: 8
+  history_length: 1
+
+  circuitop:
+    workdir: ./outputs/eval/sim_workdir
+    representation: xml   # xml | netlist, for every row (the released task sets carry no per-row representation)
+    reward_config: configs/reward_config_example.yaml:sparse_constraint_done_4spec_hint
+    action_change_mode: null   # percentage (<action>increase <target> <param> 15%</action>) | absolute (<action><param>=<value></action>); null: the preset's
+    # technology node of the task set (override with env.circuitop.tech_node=22nm etc.)
+    tech_node: 65nm
+    tech_model: null
+    # Projection / formatting (align with ppo_trainer so overrides work)
+    enforce_think_prefix: true
+    require_think_tags: true
+    think_prefilled: false
+    reject_trailing_content: true
+    end_on_trailing_content: true
+    end_on_think_prefix_error: true
+    end_on_invalid_format: false
+  
+  rollout:
+    n: 1  # Episodes per task
+  
+  resources_per_worker:
+    num_cpus: 1
+    num_gpus: 0
+
+rollout:
+  name: vllm
+  mode: sync
+  temperature: 0.0  # Greedy decoding for deterministic evaluation
+  top_k: -1
+  top_p: 1.0
+  prompt_length: ${data.max_prompt_length}
+  response_length: ${data.max_response_length}
+  
+  # vLLM settings
+  dtype: bfloat16
+  gpu_memory_utilization: 0.5
+  ignore_eos: false
+  enforce_eager: false  # Allow eager mode optimizations
+  free_cache_engine: false
+  load_format: dummy_dtensor
+  tensor_model_parallel_size: 1
+  max_num_batched_tokens: 32768  # Higher for long contexts
+  max_model_len: null
+  max_num_seqs: 256
+  log_prob_micro_batch_size: null
+  log_prob_micro_batch_size_per_gpu: null
+  log_prob_use_dynamic_bsz: false
+  log_prob_max_token_len_per_gpu: null
+  disable_log_stats: false  # Enable stats for debugging
+  enable_chunked_prefill: true
+  do_sample: false  # Greedy decoding
+  n: 1
+  # Read by the SGLang rollout (rollout.name=sglang) on the evaluation path; the vLLM rollout falls back to the keys above
+  # when val_kwargs is absent, so the interpolations keep both engines on the launcher's sampling settings.
+  val_kwargs:
+    top_k: ${rollout.top_k}
+    top_p: ${rollout.top_p}
+    temperature: ${rollout.temperature}
+    n: 1
+    do_sample: ${rollout.do_sample}
+  multi_turn:
+    enable: False
+    max_turns: null
+    tool_config_path: null
+    format: chatml
+
+actor_rollout_ref:
+  model:
+    path: ${model.path}
+    use_shm: ${model.use_shm}
+    external_lib: null
+    override_config: {}
+    enable_gradient_checkpointing: false
+    enable_activation_offload: false
+    use_remove_padding: false
+    lora_rank: 0
+    lora_alpha: 16
+    target_modules: all-linear
+    use_liger: false
+    use_fused_kernels: false
+    trust_remote_code: ${data.trust_remote_code}
+  actor:
+    strategy: fsdp
+    ppo_mini_batch_size: ${data.val_batch_size}
+    ppo_micro_batch_size: null
+    ppo_micro_batch_size_per_gpu: null
+    use_dynamic_bsz: false
+    ppo_max_token_len_per_gpu: 16384
+    grad_clip: 1.0
+    clip_ratio: 0.2
+    clip_ratio_low: 0.2
+    clip_ratio_high: 0.2
+    clip_ratio_c: 3.0
+    loss_agg_mode: token-mean
+    entropy_coeff: 0.001
+    use_invalid_action_penalty: false
+    invalid_action_penalty_coef: 0.1
+    use_kl_loss: false
+    use_torch_compile: false
+    kl_loss_coef: 0.001
+    kl_loss_type: low_var_kl
+    ppo_epochs: 1
+    shuffle: false
+    ulysses_sequence_parallel_size: 1
+    fsdp_config:
+      wrap_policy:
+        min_num_params: 0
+      param_offload: false
+      optimizer_offload: false
+      offload_policy: false
+      reshard_after_forward: true
+      fsdp_size: -1
+  ref:
+    strategy: fsdp
+    fsdp_config:
+      param_offload: false
+      reshard_after_forward: true
+      wrap_policy:
+        min_num_params: 0
+    use_torch_compile: false
+    log_prob_micro_batch_size: null
+    log_prob_micro_batch_size_per_gpu: null
+    log_prob_use_dynamic_bsz: false
+    log_prob_max_token_len_per_gpu: 16384
+    ulysses_sequence_parallel_size: 1
+  rollout:
+    name: ${rollout.name}
+    mode: ${rollout.mode}
+    temperature: ${rollout.temperature}
+    top_k: ${rollout.top_k}
+    top_p: ${rollout.top_p}
+    prompt_length: ${rollout.prompt_length}
+    response_length: ${rollout.response_length}
+    dtype: ${rollout.dtype}
+    gpu_memory_utilization: ${rollout.gpu_memory_utilization}
+    ignore_eos: ${rollout.ignore_eos}
+    enforce_eager: ${rollout.enforce_eager}
+    free_cache_engine: ${rollout.free_cache_engine}
+    load_format: ${rollout.load_format}
+    tensor_model_parallel_size: ${rollout.tensor_model_parallel_size}
+    max_num_batched_tokens: ${rollout.max_num_batched_tokens}
+    max_model_len: ${rollout.max_model_len}
+    max_num_seqs: ${rollout.max_num_seqs}
+    log_prob_micro_batch_size: ${rollout.log_prob_micro_batch_size}
+    log_prob_micro_batch_size_per_gpu: ${rollout.log_prob_micro_batch_size_per_gpu}
+    log_prob_use_dynamic_bsz: ${rollout.log_prob_use_dynamic_bsz}
+    log_prob_max_token_len_per_gpu: ${rollout.log_prob_max_token_len_per_gpu}
+    disable_log_stats: ${rollout.disable_log_stats}
+    enable_chunked_prefill: ${rollout.enable_chunked_prefill}
+    do_sample: ${rollout.do_sample}
+    n: ${rollout.n}
+    val_kwargs:
+      # Sampling of the evaluation rollouts: n samples per task (the evaluator repeats each task n times) at the
+      # launcher's temperature / top-p; follows the top-level rollout keys so one override changes both.
+      temperature: ${rollout.temperature}
+      do_sample: ${rollout.do_sample}
+      top_p: ${rollout.top_p}
+      n: ${rollout.n}
+
+actor:
+  strategy: ${actor_rollout_ref.actor.strategy}
+  ulysses_sequence_parallel_size: ${actor_rollout_ref.actor.ulysses_sequence_parallel_size}
+  fsdp_config:
+    fsdp_size: ${actor_rollout_ref.actor.fsdp_config.fsdp_size}
+
+algorithm:
+  gamma: 1.0
+  lam: 1.0
+  adv_estimator: gae
+  norm_adv_by_std_in_grpo: true
+  use_kl_in_reward: false
+  kl_penalty: kl
+  kl_ctrl:
+    type: fixed
+    kl_coef: 0.001
+    horizon: 10000
+    target_kl: 0.1
+  use_pf_ppo: false
+  filter_groups:
+    enable: false
+    max_num_gen_batches: 1
+
+evaluation:
+  max_episodes: null  # null = evaluate all, or set a number
+  pass_at_ks: [1, 3]  # Pass@k reported from the n samples per task
+  output_path: ./outputs/eval/results.json
+  rollout_data_dir: ./outputs/eval/rollouts  # Directory to save detailed rollout trajectories
+  project_name: verl_agent_circuit_eval
+  experiment_name: qwen-1.5b-llmTem-baseline-eval
+  logger: ['console','wandb']  # Options: 'console', 'wandb', or both ['console', 'wandb']
+
+ray_init:
+  num_cpus: 8  # should match the CPUs allocated to the job

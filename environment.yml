@@ -1,0 +1,13 @@
+# conda env create -f environment.yml && conda activate slic
+# Python, pip and the circuit simulator from conda-forge; every Python package pinned in requirements.txt (the exact set of
+# the paper's training environment); then this repository (the `slic` command), whose dependencies that set already holds.
+name: slic
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12.14
+  - pip=26.2.1
+  - ngspice=41
+  - pip:
+      - -r requirements.txt
+      - -e .

@@ -1,0 +1,11 @@
+# Reward-shaping ablation: no success-slack bonus (tolerance-aligned four-spec reward only),
+# with dynamic group filtering; random continuation.
+kind: rl
+experiment_name: abl_no_slack_qwen3.5_4b
+model_path: null   # REQUIRED: your own SFT checkpoint (HF format), see scripts/train/sft/README.md; the paper's SFT inits are not released
+dataset_dir: data/standard
+num_gpus: 2
+reward_preset: sparse_constraint_done_4spec_hint
+overrides:
+  - algorithm.step_wise.skip_degenerate_groups=true
+  - actor_rollout_ref.actor.ppo_mini_batch_size=128

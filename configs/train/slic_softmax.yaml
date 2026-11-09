@@ -1,0 +1,10 @@
+# SLIC-Softmax (continuation-policy ablation): softmax over continuation scores, T=1.0 (the launcher's
+# algorithm.slic.continuation_temperature), only valid branches are eligible. Everything else as configs/train/slic_random.yaml.
+kind: rl
+experiment_name: slic_softmax_qwen3.5_4b
+model_path: null   # REQUIRED: your own SFT checkpoint (HF format), see scripts/train/sft/README.md; the paper's SFT inits are not released
+dataset_dir: data/standard
+num_gpus: 2
+overrides:
+  - algorithm.slic.continuation_policy=softmax
+  - algorithm.slic.continuation_valid_only=true

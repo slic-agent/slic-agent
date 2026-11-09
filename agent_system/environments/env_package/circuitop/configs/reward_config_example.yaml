@@ -1,0 +1,181 @@
+# Reward presets for the CircuitOp environment.
+#
+# Select one with `<this file>:<preset name>` (reward_preset in configs/eval/*.yaml and
+# configs/train/*.yaml). Every preset is a constraint-mode goal on four specifications (gain, power, -3 dB bandwidth,
+# phase-margin window), each with a 5 % tolerance. Field meanings are documented in reward_config.py (RewardConfig);
+# unknown keys are rejected.
+#
+# Name parts: `sparse_constraint_done_4spec` (four-spec constraint goal, reward computed per turn, episode ends at success
+# or the turn limit), `hint` (the prompt carries the optimisation hint, gain first) vs `nohint`, `tolalign`
+# (tolerance-aligned score), `contoptstop` (stop at success) vs `contopt` (keep optimising after success), `nogate` (no
+# domain-validity gates).
+#
+# Metrics reported for every preset: `success` = all four specs met (fixed benchmark verdict), `performance_success` =
+# every spec in constraint_specs met (the same four here; the list is also the stop rule and the per-turn score's specs).
+
+# Evaluation protocol (configs/eval/*.yaml) and training preset of the runs without the success-slack term
+# (configs/train/abl_no_slack.yaml, configs/train/baseline_fixed_base.yaml): stop at success, a success scores 1.0.
+sparse_constraint_done_4spec_hint:
+  enforce_action_percentage_range: true
+  action_percentage_min: 1
+  action_percentage_max: 500
+  constraint_specs: ["gain", "power", "bandwidth", "phase_margin"]
+  action_space_prompt_max_targets: 0
+  gain_improvement_tolerance_dB: 0.1
+  gain_relative_tolerance: 0.05
+  terminal_bonus_gain_relative_tolerance: 0.05
+  power_relative_tolerance: 0.05
+  bandwidth_relative_tolerance: 0.05
+  require_gain_met_for_terminal_bonus: true
+  goal_prompt_style: "goal_with_optimization_hint"
+  goal_optimization_hint: "Prioritize gain first. Bandwidth is the -3 dB frequency of the design's own low-frequency gain, so raising gain typically narrows bandwidth - balance them, and keep in-band peaking <= 6 dB or gain/bandwidth/PM readings are not trusted. After gain is on track, improve bandwidth together with phase margin, then reduce power while preserving the achieved gain, bandwidth, and phase-margin targets. Other bonuses only become available once the gain threshold is reached."
+  terminal_metric_bonus:
+    gain: 1.0
+    power: 1.0
+    bandwidth: 1.0
+    phase_margin: 1.0
+
+# 0 %-tolerance evaluation protocol: the preset above with every spec tolerance at 0 (targets stated at 0 % in the
+# prompt, auto-stop only at exact success); used by configs/eval/standard_{iid,ood}_tol0.yaml and
+# tools/analysis/tolerance_sweep.py.
+sparse_constraint_done_4spec_hint_tol0eval:
+  enforce_action_percentage_range: true
+  action_percentage_min: 1
+  action_percentage_max: 500
+  constraint_specs: ["gain", "power", "bandwidth", "phase_margin"]
+  action_space_prompt_max_targets: 0
+  gain_improvement_tolerance_dB: 0.1
+  gain_relative_tolerance: 0.0
+  terminal_bonus_gain_relative_tolerance: 0.0
+  power_relative_tolerance: 0.0
+  bandwidth_relative_tolerance: 0.0
+  require_gain_met_for_terminal_bonus: true
+  goal_prompt_style: "goal_with_optimization_hint"
+  goal_optimization_hint: "Prioritize gain first. Bandwidth is the -3 dB frequency of the design's own low-frequency gain, so raising gain typically narrows bandwidth - balance them, and keep in-band peaking <= 6 dB or gain/bandwidth/PM readings are not trusted. After gain is on track, improve bandwidth together with phase margin, then reduce power while preserving the achieved gain, bandwidth, and phase-margin targets. Other bonuses only become available once the gain threshold is reached."
+  terminal_metric_bonus:
+    gain: 1.0
+    power: 1.0
+    bandwidth: 1.0
+    phase_margin: 1.0
+
+# The evaluation preset with goal_prompt_style goal_no_hint, for evaluating the no-gates/no-hint ablation in its
+# training prompt format (configs/eval/standard_{iid,ood}_nohint.yaml).
+sparse_constraint_done_4spec_nohint:
+  enforce_action_percentage_range: true
+  action_percentage_min: 1
+  action_percentage_max: 500
+  constraint_specs: ["gain", "power", "bandwidth", "phase_margin"]
+  action_space_prompt_max_targets: 0
+  gain_improvement_tolerance_dB: 0.1
+  gain_relative_tolerance: 0.05
+  terminal_bonus_gain_relative_tolerance: 0.05
+  power_relative_tolerance: 0.05
+  bandwidth_relative_tolerance: 0.05
+  require_gain_met_for_terminal_bonus: true
+  goal_prompt_style: "goal_no_hint"
+  terminal_metric_bonus:
+    gain: 1.0
+    power: 1.0
+    bandwidth: 1.0
+    phase_margin: 1.0
+
+# Main training preset (SLIC-Random / -Softmax / -Greedy, dynamic filtering, MT-GRPO, other base models):
+# stop at success; a success scores 1 + 0.5 * mean(slack terms) (success_margin_weight, success_slack_cap).
+sparse_constraint_done_4spec_hint_tolalign_contoptstop:
+  enforce_action_percentage_range: true
+  action_percentage_min: 1
+  action_percentage_max: 500
+  constraint_specs: ["gain", "power", "bandwidth", "phase_margin"]
+  action_space_prompt_max_targets: 0
+  allow_further_exploration_after_goal: false
+  gain_improvement_tolerance_dB: 0.1
+  gain_relative_tolerance: 0.05
+  terminal_bonus_gain_relative_tolerance: 0.05
+  power_relative_tolerance: 0.05
+  bandwidth_relative_tolerance: 0.05
+  success_margin_weight: 0.5
+  success_slack_cap: 1.0
+  require_gain_met_for_terminal_bonus: true
+  goal_prompt_style: "goal_with_optimization_hint"
+  goal_optimization_hint: "Prioritize gain first. Bandwidth is the -3 dB frequency of the design's own low-frequency gain, so raising gain typically narrows bandwidth - balance them, and keep in-band peaking <= 6 dB or gain/bandwidth/PM readings are not trusted. After gain is on track, improve bandwidth together with phase margin, then reduce power while preserving the achieved gain, bandwidth, and phase-margin targets. Other bonuses only become available once the gain threshold is reached."
+  terminal_metric_bonus:
+    gain: 1.0
+    power: 1.0
+    bandwidth: 1.0
+    phase_margin: 1.0
+
+# As the main preset, but the episode continues after success (allow_further_exploration_after_goal) until the
+# turn limit (configs/train/abl_separate_norm.yaml, configs/train/abl_joint_norm.yaml).
+sparse_constraint_done_4spec_hint_tolalign_contopt:
+  enforce_action_percentage_range: true
+  action_percentage_min: 1
+  action_percentage_max: 500
+  constraint_specs: ["gain", "power", "bandwidth", "phase_margin"]
+  action_space_prompt_max_targets: 0
+  allow_further_exploration_after_goal: true
+  gain_improvement_tolerance_dB: 0.1
+  gain_relative_tolerance: 0.05
+  terminal_bonus_gain_relative_tolerance: 0.05
+  power_relative_tolerance: 0.05
+  bandwidth_relative_tolerance: 0.05
+  success_margin_weight: 0.5
+  success_slack_cap: 1.0
+  require_gain_met_for_terminal_bonus: true
+  goal_prompt_style: "goal_with_optimization_hint"
+  goal_optimization_hint: "Prioritize gain first. Bandwidth is the -3 dB frequency of the design's own low-frequency gain, so raising gain typically narrows bandwidth - balance them, and keep in-band peaking <= 6 dB or gain/bandwidth/PM readings are not trusted. After gain is on track, improve bandwidth together with phase margin, then reduce power while preserving the achieved gain, bandwidth, and phase-margin targets. Other bonuses only become available once the gain threshold is reached."
+  terminal_metric_bonus:
+    gain: 1.0
+    power: 1.0
+    bandwidth: 1.0
+    phase_margin: 1.0
+
+# Ablation without domain-validity gates and without the optimisation hint (configs/train/abl_no_gates.yaml):
+# the main preset with disable_validity_gates and goal_prompt_style goal_no_hint.
+sparse_constraint_done_4spec_nohint_tolalign_contoptstop_nogate:
+  enforce_action_percentage_range: true
+  action_percentage_min: 1
+  action_percentage_max: 500
+  constraint_specs: ["gain", "power", "bandwidth", "phase_margin"]
+  action_space_prompt_max_targets: 0
+  allow_further_exploration_after_goal: false
+  gain_improvement_tolerance_dB: 0.1
+  gain_relative_tolerance: 0.05
+  terminal_bonus_gain_relative_tolerance: 0.05
+  power_relative_tolerance: 0.05
+  bandwidth_relative_tolerance: 0.05
+  disable_validity_gates: true
+  success_margin_weight: 0.5
+  success_slack_cap: 1.0
+  require_gain_met_for_terminal_bonus: true
+  goal_prompt_style: "goal_no_hint"
+  terminal_metric_bonus:
+    gain: 1.0
+    power: 1.0
+    bandwidth: 1.0
+    phase_margin: 1.0
+
+# Plain episode-level GRPO reference (configs/train/episode_grpo.yaml): the main preset, but the terminal bonus
+# counts each met spec (0-4), PM scored without gating, and no gain-met gate on the count.
+sparse_constraint_done_4spec_hint_tolalign_contoptstop_count04_nogainmetgate:
+  enforce_action_percentage_range: true
+  action_percentage_min: 1
+  action_percentage_max: 500
+  constraint_specs: ["gain", "power", "bandwidth", "phase_margin"]
+  action_space_prompt_max_targets: 0
+  allow_further_exploration_after_goal: false
+  gain_improvement_tolerance_dB: 0.1
+  gain_relative_tolerance: 0.05
+  terminal_bonus_gain_relative_tolerance: 0.05
+  power_relative_tolerance: 0.05
+  bandwidth_relative_tolerance: 0.05
+  success_margin_weight: 0.5
+  success_slack_cap: 1.0
+  require_gain_met_for_terminal_bonus: false
+  include_phase_margin_in_terminal_bonus: true
+  goal_prompt_style: "goal_with_optimization_hint"
+  goal_optimization_hint: "Prioritize gain first. Bandwidth is the -3 dB frequency of the design's own low-frequency gain, so raising gain typically narrows bandwidth - balance them, and keep in-band peaking <= 6 dB or gain/bandwidth/PM readings are not trusted. After gain is on track, improve bandwidth together with phase margin, then reduce power while preserving the achieved gain, bandwidth, and phase-margin targets. Other bonuses only become available once the gain threshold is reached."
+  terminal_metric_bonus:
+    gain: 1.0
+    power: 1.0
+    bandwidth: 1.0
+    phase_margin: 1.0

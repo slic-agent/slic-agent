@@ -1,0 +1,14 @@
+# Plain episode-level GRPO reference (not in the paper's tables): one scalar return per trajectory, standardised within the
+# task's group of G trajectories and applied to every turn; no turn-level credit assignment or stabiliser. Rollouts, reward
+# and stop-at-success episodes as configs/train/slic_random.yaml.
+kind: rl
+experiment_name: episode_grpo_qwen3.5_4b
+model_path: null   # REQUIRED: your own SFT checkpoint (HF format), see scripts/train/sft/README.md; the paper's SFT inits are not released
+dataset_dir: data/standard
+num_gpus: 2
+reward_preset: sparse_constraint_done_4spec_hint_tolalign_contoptstop_count04_nogainmetgate
+overrides:
+  - algorithm.adv_estimator=grpo
+  - reward_model.reward_manager=episode
+  - algorithm.step_wise.advantage_mode=joint    # the launcher's separate_validity_perf is valid only with adv_estimator=slic
+  - algorithm.norm_adv_by_std_in_grpo=true

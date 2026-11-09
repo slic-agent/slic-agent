@@ -1,0 +1,6 @@
+# Hopper GPUs (H100 / H200) only, on top of environment.yml:  pip install --no-deps -r requirements-hopper.txt
+# flash-linear-attention 0.5.2 refuses the Qwen3.5 linear-attention training backward on Hopper with Triton >= 3.4.0,
+# < 3.7.1 (wrong results, fla issue #640); torch 2.10.0 pins triton 3.6.0, hence --no-deps (pip then warns that torch
+# requires triton==3.6.0: expected). The paper's Hopper training runs used exactly this. Blackwell (B200) and older GPUs
+# keep the environment.yml set.
+triton==3.7.1
