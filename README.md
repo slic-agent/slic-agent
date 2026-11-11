@@ -2,7 +2,7 @@
 
 # SLIC: Reinforcement Fine-Tuning Small LMs for Multi-Turn Analog Circuit Optimization
 
-[![Paper on arXiv](https://img.shields.io/badge/arXiv-2611.13452-b31b1b)](https://arxiv.org/abs/2611.13452)
+[![Paper on arXiv](https://img.shields.io/badge/Paper-arXiv%3A2611.13452-b31b1b)](https://arxiv.org/abs/2611.13452)
 [![Data](https://img.shields.io/badge/%F0%9F%A4%97%20Data-slic--agent-yellow)](https://huggingface.co/slic-agent)
 [![License](https://img.shields.io/badge/License-Apache--2.0-blue)](LICENSE)
 
