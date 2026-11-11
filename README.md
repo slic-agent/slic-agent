@@ -2,7 +2,7 @@
 
 # SLIC: Reinforcement Fine-Tuning Small LMs for Multi-Turn Analog Circuit Optimization
 
-[![Paper](https://img.shields.io/badge/Paper-arXiv%20(coming%20soon)-b31b1b)](https://arxiv.org/)
+[![Paper on arXiv](https://img.shields.io/badge/arXiv-2611.13452-b31b1b)](https://arxiv.org/abs/2611.13452)
 [![Data](https://img.shields.io/badge/%F0%9F%A4%97%20Data-slic--agent-yellow)](https://huggingface.co/slic-agent)
 [![License](https://img.shields.io/badge/License-Apache--2.0-blue)](LICENSE)
 
@@ -103,7 +103,18 @@ docs/            METHOD.md, DATASETS.md, REPRODUCE.md, SIMULATORS.md
 
 ## 📝 Citation
 
-The BibTeX entry follows with the arXiv release.
+```bibtex
+@inproceedings{xu2026slic,
+  title = {SLIC: Reinforcement Fine-Tuning Small LMs for
+           Multi-Turn Analog Circuit Optimization},
+  author = {Xu, Yan and Gao, Zhengqi and Ko, Ching-Yun and
+            Hong, Zhang-Wei and Lu, Wenjie and Yu, Tao and
+            Zhang, Xin and Boning, Duane S. and Han, Ruonan},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year = {2026},
+  url = {https://arxiv.org/abs/2611.13452}
+}
+```
 
 ## 🙏 Acknowledgement
 
