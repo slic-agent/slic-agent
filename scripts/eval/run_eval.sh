@@ -6,7 +6,7 @@
 # Outputs: outputs/eval/<evaluation.experiment_name>/{results.json, rollouts/, sim_workdir/}.
 cd "$(dirname "$0")/../.." || exit 1
 python3 -m verl.trainer.main_env_eval \
-    model.path=models/my-slic-random \
+    model.path=models/qwen3.5-4b-slic-random \
     data.val_files=data/standard/test_iid.parquet \
     data.val_batch_size=140 \
     data.max_prompt_length=13072 \

@@ -1,7 +1,7 @@
 # Standard family, out-of-distribution test set under the 0 %-TOLERANCE protocol: same checkpoint and tasks as
 # standard_ood.yaml, but every spec tolerance is 0 (targets stated at 0 % in the prompt, auto-stop only at exact success). Its
 # rollouts give tools/analysis/tolerance_sweep.py exact success rates below the official 5 % tolerance.
-model_path: models/my-slic-random   # REQUIRED: your HF-format checkpoint (docs/REPRODUCE.md, "Checkpoints")
+model_path: models/qwen3.5-4b-slic-random   # the released checkpoint (README, "Model"), or your own HF-format one (docs/REPRODUCE.md, "Checkpoints")
 tasks: data/standard/test_ood.parquet
 run_tag: slic_random_qwen3.5_4b_standard_ood_tol0
 protocol:

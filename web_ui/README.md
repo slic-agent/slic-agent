@@ -13,6 +13,8 @@ pipeline, so the model sees exactly the prompts of `slic eval` (default turn bud
 
 - Each turn's reply, thinking included, streams into a foldable card; the start design's metrics open the timeline.
 - The Parameters tab shows every device parameter from the start through each turn.
+- Tolerance (%) sets each spec's own tolerance (gain, power, bandwidth, phase margin), pre-filled with the evaluation
+  protocol's; the prompt states them and success and the auto-stop use them (`/api/protocol` gives the defaults).
 - Sampling (temperature, top-p, max tokens, seed) opens with the model's defaults. With a seed, a local vLLM model repeats
   an episode exactly; without one, every run samples afresh.
 - Record saves a .webm screen capture (browsers allow it only on https or localhost; use an SSH tunnel for a remote server).

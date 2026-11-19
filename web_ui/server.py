@@ -20,7 +20,7 @@ import sys
 sys.path.insert(0, str(project_root))
 
 from web_ui.topology_names import describe as describe_topology
-from web_ui.streaming_inference import API_SAMPLING_DEFAULTS, protocol_sampling, run_streaming_inference
+from web_ui.streaming_inference import API_SAMPLING_DEFAULTS, protocol_sampling, protocol_tolerances, run_streaming_inference
 
 app = FastAPI(title="CircuitOp Web UI", version="0.1.0")
 app.add_middleware(
@@ -166,6 +166,8 @@ class InteractiveInferenceRequest(BaseModel):
     max_steps: int = 32
     goal_specs: Optional[Dict[str, Any]] = None
     initial_params: Optional[Dict[str, Any]] = None
+    # per-spec tolerances as fractions, keys gain / power / bandwidth / phase_margin; None or a missing key: the protocol's
+    tolerances: Optional[Dict[str, Optional[float]]] = None
 
 
 # --- Routes ---
@@ -198,6 +200,18 @@ def _local_sampling() -> Dict[str, Any]:
     if _LOCAL_SAMPLING is None:
         _LOCAL_SAMPLING = protocol_sampling()
     return dict(_LOCAL_SAMPLING)
+
+
+_TOLERANCES: Optional[Dict[str, float]] = None
+
+
+@app.get("/api/protocol")
+def protocol():
+    """The evaluation protocol's per-spec tolerances (fractions; scripts/eval/run_eval.sh's reward preset): the page's defaults."""
+    global _TOLERANCES
+    if _TOLERANCES is None:
+        _TOLERANCES = protocol_tolerances()
+    return {"tolerances": dict(_TOLERANCES)}
 
 
 @app.get("/api/nodes")
@@ -292,6 +306,7 @@ def interactive_stream(req: InteractiveInferenceRequest):
             local_model_name=LOCAL_MODEL_NAME if req.provider == "local" else None,
             goal_override=req.goal_specs,
             initial_params_override=req.initial_params,
+            tolerances=req.tolerances,
         ):
             yield f"data: {chunk}\n\n"
 

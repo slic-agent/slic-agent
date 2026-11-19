@@ -1,5 +1,5 @@
 # Standard family, out-of-distribution topologies (280 tasks, 7 unseen topologies x 40).
-model_path: models/my-slic-random   # REQUIRED: your HF-format checkpoint (docs/REPRODUCE.md, "Checkpoints")
+model_path: models/qwen3.5-4b-slic-random   # the released checkpoint (README, "Model"), or your own HF-format one (docs/REPRODUCE.md, "Checkpoints")
 tasks: data/standard/test_ood.parquet
 run_tag: slic_random_qwen3.5_4b_standard_ood
 protocol:

@@ -152,14 +152,15 @@ class CircuitopWorker:
         
         # Row goal from the dataset
         if target is not None:
-            # Default bandwidth goal 10 MHz if absent; the phase-margin window is always 30-90 deg.
+            # Defaults for specs the goal leaves out: bandwidth 10 MHz, phase-margin window 30-90 deg (every released task row
+            # states 30-90). A goal that sets its own window (the browser UI's PM fields, slic solve's goal:) keeps it.
             if 'bandwidth_min' not in target:
                 target = {**target, 'bandwidth_min': 10.0}
-            target = {
-                **target,
-                'phase_margin_min_deg': 30.0,
-                'phase_margin_max_deg': 90.0,
-            }
+            pm_min = 30.0 if target.get('phase_margin_min_deg') is None else float(target['phase_margin_min_deg'])
+            pm_max = 90.0 if target.get('phase_margin_max_deg') is None else float(target['phase_margin_max_deg'])
+            if not pm_min <= pm_max:
+                raise ValueError(f"goal: phase_margin_min_deg {pm_min} > phase_margin_max_deg {pm_max}")
+            target = {**target, 'phase_margin_min_deg': pm_min, 'phase_margin_max_deg': pm_max}
             target = self._augment_goal_prompt_fields(target)
 
             self.reward_config.goal = target

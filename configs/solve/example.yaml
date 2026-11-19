@@ -1,5 +1,5 @@
 # One optimization episode, streamed turn by turn. Serve the checkpoint first, e.g.
-#   vllm serve models/my-slic-random --served-model-name slic-random --port 8000 --limit-mm-per-prompt '{"image":0,"video":0}'
+#   vllm serve models/qwen3.5-4b-slic-random --served-model-name slic-random --port 8000 --limit-mm-per-prompt '{"image":0,"video":0}'
 # (Qwen3.5 checkpoints: text weights only under the multimodal config, hence the image / video limit of 0)
 task:
   tasks: data/standard/test_iid.parquet

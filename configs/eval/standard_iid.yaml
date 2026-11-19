@@ -1,5 +1,5 @@
 # Standard family, in-distribution test set (832 tasks: 33 topologies x 24 + single_ended_telescopic_pmos_LG_pmos_biasn_LV x 40): the main Table 1 protocol.
-model_path: models/my-slic-random   # REQUIRED: your HF-format checkpoint (docs/REPRODUCE.md, "Checkpoints")
+model_path: models/qwen3.5-4b-slic-random   # the released checkpoint (README, "Model"), or your own HF-format one (docs/REPRODUCE.md, "Checkpoints")
 tasks: data/standard/test_iid.parquet
 run_tag: slic_random_qwen3.5_4b_standard_iid
 protocol:

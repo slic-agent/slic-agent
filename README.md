@@ -32,7 +32,8 @@ To simulate with Cadence Spectre instead of ngspice, see `docs/SIMULATORS.md`.
 ```bash
 slic check                                                                   # packages, GPUs, simulator (ngspice / Spectre), one simulation
 slic data --family standard                                                  # task sets from the Hub
-slic eval  --config configs/eval/standard_iid.yaml --model <checkpoint>      # the paper's IID protocol
+hf download slic-agent/slic-models --include "qwen3.5-4b-slic-random/*" --local-dir models   # the released model
+slic eval  --config configs/eval/standard_iid.yaml                           # the paper's IID protocol
 slic train --config configs/train/slic_random.yaml --set model_path=<sft>   # the main method (2 GPUs, 400 steps)
 ```
 
@@ -45,20 +46,26 @@ slic data --family nodes --cards            # the 22-130 nm task sets; device mo
 
 `slic tasks --spec my_tasks.yaml` turns your own circuits into a task parquet in the released format (`docs/DATASETS.md`).
 
+## 🤖 Model
+
+[`slic-agent/slic-models`](https://huggingface.co/slic-agent/slic-models) holds SLIC-Random (Qwen3.5-4B, 65 nm), trained on
+`data/standard` with this code. `hf download` above puts it in `models/qwen3.5-4b-slic-random`, the default `model_path` of
+`configs/eval/` and the checkpoint served below; `--model <dir>` evaluates any other HF-format checkpoint.
+
 ## 🔌 Solve one task
 
 Serve the checkpoint with an OpenAI-compatible server (Qwen3.5 checkpoints need the `--limit-mm-per-prompt` setting) and
 stream an episode; it uses the evaluation pipeline, so the model sees exactly the prompts of `slic eval`:
 
 ```bash
-vllm serve models/my-slic-random --served-model-name slic-random --port 8000 --limit-mm-per-prompt '{"image":0,"video":0}' &
+vllm serve models/qwen3.5-4b-slic-random --served-model-name slic-random --port 8000 --limit-mm-per-prompt '{"image":0,"video":0}' &
 slic solve --config configs/solve/example.yaml --index 3
 ```
 
 ## 📊 Evaluate
 
 ```bash
-slic eval --config configs/eval/standard_ood.yaml --model models/my-checkpoint
+slic eval --config configs/eval/standard_ood.yaml                        # or --model <your checkpoint>
 ```
 
 `configs/eval/` has one file per task set (8 steps, 3 samples per task, Pass@1 / Pass@3). Results go to

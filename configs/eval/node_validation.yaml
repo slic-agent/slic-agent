@@ -1,7 +1,7 @@
 # Technology-node sweep: the standard validation tasks rebuilt at another node (408 tasks, 12 per in-distribution topology); slic data --family nodes --cards.
 # Set tech_node and tasks TOGETHER (22nm / 32nm / 45nm / 90nm / 130nm); the 65 nm point of the sweep is the standard family
 # (configs/eval/standard_iid.yaml with tasks: data/standard/validation.parquet and --set batch_size=204).
-model_path: models/my-slic-random   # REQUIRED: your HF-format checkpoint (docs/REPRODUCE.md, "Checkpoints")
+model_path: models/qwen3.5-4b-slic-random   # the released checkpoint (README, "Model"), or your own HF-format one (docs/REPRODUCE.md, "Checkpoints")
 tasks: data/nodes/validation_22nm.parquet
 run_tag: slic_random_qwen3.5_4b_validation_22nm
 protocol:

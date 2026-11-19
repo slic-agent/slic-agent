@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import copy
 import json
+import math
 import os
 import re
 import shlex
@@ -55,6 +56,63 @@ def protocol_sampling() -> Dict[str, Any]:
 
 
 API_SAMPLING_DEFAULTS = {"temperature": 0.4, "top_p": None, "max_tokens": None, "seed": None}   # circuit/agents/api_agent.py
+
+# per-spec tolerance (fraction) -> the reward-config fields it sets; the gain tolerance also sets the terminal bonus' gain check,
+# as in every released preset
+TOLERANCE_FIELDS = {
+    "gain": ("gain_relative_tolerance", "terminal_bonus_gain_relative_tolerance"),   # gain >= min x (1 - t)
+    "power": ("power_relative_tolerance",),                                           # power <= max x (1 + t)
+    "bandwidth": ("bandwidth_relative_tolerance",),                                   # bandwidth >= min x (1 - t)
+    "phase_margin": ("phase_margin_relative_tolerance",),                             # PM in [min x (1 - t), max x (1 + t)]
+}
+
+
+def _preset(spec: str) -> Tuple[Path, str, Dict[str, Any]]:
+    """'<yaml>:<preset>' (env.circuitop.reward_config) -> (yaml path, preset name, the preset's raw fields); a relative path is
+    resolved as RewardConfig.from_yaml does (against the circuitop package)."""
+    import yaml
+    from agent_system.environments.env_package.circuitop import reward_config as rc
+
+    path, _, name = str(spec).partition(":")
+    p = Path(path) if Path(path).is_absolute() else Path(rc.__file__).parent / path
+    raw = yaml.safe_load(p.read_text(encoding="utf-8"))
+    if not name or name not in raw:
+        raise ValueError(f"reward config {spec!r}: needs <yaml>:<preset> with a preset of {p}")
+    return p, name, dict(raw[name])
+
+
+def tolerances_of(spec: str) -> Dict[str, float]:
+    """The per-spec tolerances (fractions) of a reward config '<yaml>:<preset>'."""
+    from agent_system.environments.env_package.circuitop.reward_config import load_reward_config
+
+    rc = load_reward_config(spec)
+    return {k: float(getattr(rc, fields[0])) for k, fields in TOLERANCE_FIELDS.items()}
+
+
+def protocol_tolerances() -> Dict[str, float]:
+    """The evaluation protocol's per-spec tolerances (scripts/eval/run_eval.sh's reward preset): the page's defaults."""
+    return tolerances_of(episode_config().env.circuitop.reward_config)
+
+
+def _write_tolerance_preset(spec: str, tolerances: Dict[str, Any], workdir: str) -> str:
+    """A copy of preset `spec` with the given per-spec tolerances (fractions, 0 <= t < 1; keys of TOLERANCE_FIELDS; a missing
+    key keeps the preset's value), written to workdir; returns its '<yaml>:<preset>'. Anything else raises ValueError."""
+    import yaml
+
+    unknown = sorted(set(tolerances) - set(TOLERANCE_FIELDS))
+    if unknown:
+        raise ValueError(f"tolerances: unknown spec(s) {unknown}; allowed {sorted(TOLERANCE_FIELDS)}")
+    _, name, fields = _preset(spec)
+    for k, v in tolerances.items():
+        if v is None:
+            continue
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or not 0 <= v < 1:
+            raise ValueError(f"tolerances.{k}={v!r}: a fraction 0 <= t < 1 (0.05 = 5 %)")
+        for f in TOLERANCE_FIELDS[k]:
+            fields[f] = float(v)
+    out = Path(workdir) / "reward_config_tolerances.yaml"
+    out.write_text(yaml.safe_dump({name: fields}, sort_keys=False), encoding="utf-8")
+    return f"{out}:{name}"
 
 
 def episode_config(overrides: Sequence[str] = ()):
@@ -134,12 +192,15 @@ def run_streaming_inference(
     local_model_name: Optional[str] = None,
     goal_override: Optional[Dict[str, Any]] = None,
     initial_params_override: Optional[Dict[str, Any]] = None,
+    tolerances: Optional[Dict[str, Any]] = None,
     overrides: Sequence[str] = (),
 ) -> Generator[str, None, None]:
     """Run one episode of `task` (a task row's env_kwargs: topology, target, task_data) and yield its events.
 
     max_steps / reward_preset / tech_node override the evaluation protocol; goal_override replaces target specs;
-    initial_params_override replaces starting device parameters; overrides are extra hydra overrides. temperature / top_p /
+    initial_params_override replaces starting device parameters; tolerances ({gain, power, bandwidth, phase_margin}: fraction)
+    replace the reward preset's per-spec tolerances (success, stop rule, score and the prompt's tolerance clause all follow);
+    overrides are extra hydra overrides. temperature / top_p /
     max_tokens / seed override the sampling (None = the protocol's for a local model, the API agent's default otherwise);
     with a seed, a local vLLM server reproduces the episode."""
     from agent_system.environments.env_manager import (CircuitopEnvironmentManager, circuitop_env_kwargs,
@@ -157,6 +218,9 @@ def run_streaming_inference(
             ov.append(f"env.circuitop.tech_node={tech_node}")
         try:
             cfg = episode_config(ov + list(overrides))
+            if tolerances and any(v is not None for v in tolerances.values()):
+                ov.append("env.circuitop.reward_config=" + _write_tolerance_preset(cfg.env.circuitop.reward_config, tolerances, workdir))
+                cfg = episode_config(ov + list(overrides))
         except Exception as e:
             yield json.dumps({"event": "error", "message": f"episode config: {type(e).__name__}: {e}"})
             return
@@ -214,6 +278,7 @@ def run_streaming_inference(
             "sampling": dict(sampling, seed=sampling.get("seed")) if use_local else {**API_SAMPLING_DEFAULTS, **agent.sampling},
             "goal_display": manager.format_goal_for_display(manager.goals[0]),
             "goal_specs": {k: v for k, v in target.items() if v is not None},
+            "tolerances": tolerances_of(cfg.env.circuitop.reward_config),   # the per-spec tolerances this episode uses
             "initial_gain_dB": _metric(info, "initial_gain_dB"),
             "initial_power_uW": _metric(info, "initial_power_uW"),
             "initial_bandwidth_MHz": _metric(info, "bandwidth_MHz"),

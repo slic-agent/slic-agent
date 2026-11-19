@@ -1,5 +1,5 @@
 # Hard family, IID test (436 tasks): one of the four specifications starts far from its target.
-model_path: models/my-slic-random   # REQUIRED: your HF-format checkpoint (docs/REPRODUCE.md, "Checkpoints")
+model_path: models/qwen3.5-4b-slic-random   # the released checkpoint (README, "Model"), or your own HF-format one (docs/REPRODUCE.md, "Checkpoints")
 tasks: data/hard/test_iid.parquet
 run_tag: slic_random_qwen3.5_4b_hard_iid
 protocol:
