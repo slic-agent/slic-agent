@@ -68,6 +68,7 @@ OTHER_NODES = ("22nm", "32nm", "45nm", "90nm", "130nm")
 TOPOLOGY_IMAGES_DIR = _config["topology_images_dir"] or str(project_root / "data" / "topologies")
 LOCAL_MODEL_BASE_URL = _config["local_model_base_url"]
 LOCAL_MODEL_NAME = _config["local_model_name"] or "local"
+MEMORY_DIR = os.environ.get("CIRCUITOP_MEMORY_DIR", "")   # episode memory (slic serve --memory-dir); off when empty
 
 
 
@@ -270,12 +271,12 @@ def get_topology_image(name: str):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "dataset_configured": bool(DATASET_PATH), "nodes": [n["node"] for n in list_nodes()["nodes"]]}
+    return {"status": "ok", "dataset_configured": bool(DATASET_PATH), "nodes": [n["node"] for n in list_nodes()["nodes"]],
+            "memory": bool(MEMORY_DIR)}
 
 
 # --- Interactive streaming inference ---
 
-@app.post("/api/interactive/stream")
 def interactive_stream(req: InteractiveInferenceRequest):
     """SSE endpoint: streams step-by-step inference results as newline-delimited JSON."""
     if req.node != "65nm" and not _card_available(req.node):
@@ -311,6 +312,15 @@ def interactive_stream(req: InteractiveInferenceRequest):
             yield f"data: {chunk}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+# Without memory the endpoint is registered as is. With memory, web_ui/memory registers a recording version of it, plus
+# /api/memory/* and the Database page (/database); the page loads the memory panel when /api/health reports memory on.
+if MEMORY_DIR:
+    from web_ui.memory import enable_memory
+    enable_memory(app, sys.modules[__name__], MEMORY_DIR)
+else:
+    app.post("/api/interactive/stream")(interactive_stream)
 
 
 # --- Serve frontend ---

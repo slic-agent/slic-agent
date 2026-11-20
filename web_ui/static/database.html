@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Experience Database</title>
+<style>
+:root {
+  --bg: #0d1117; --bg2: #161b22; --bg3: #21262d; --border: #30363d;
+  --text: #c9d1d9; --text2: #8b949e; --accent: #58a6ff; --accent2: #1f6feb;
+  --green: #3fb950; --red: #f85149; --yellow: #d29922; --radius: 8px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; font-size: 13px; }
+a { color: var(--accent); }
+.header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.header h1 { font-size: 18px; font-weight: 600; }
+.header nav { display: flex; gap: 12px; font-size: 13px; }
+.header nav a { text-decoration: none; padding: 4px 10px; border-radius: 6px; }
+.header nav a.active { background: var(--bg3); }
+.header .stats { margin-left: auto; color: var(--text2); font-size: 12px; }
+main { padding: 16px 24px; max-width: 1500px; }
+.filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+select, input[type=text], input[type=number] { font-size: 12px; background: var(--bg3); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; }
+button { font-size: 11px; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg3); color: var(--text); cursor: pointer; white-space: nowrap; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+table { border-collapse: collapse; width: 100%; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+th { background: var(--bg2); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text2); font-weight: 600; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.muted { color: var(--text2); }
+.ok { color: var(--green); } .bad { color: var(--red); } .est { color: var(--yellow); }
+.actions { display: flex; gap: 4px; flex-wrap: wrap; }
+tr.detail td { background: var(--bg2); }
+.detail pre { white-space: pre-wrap; word-break: break-all; font-size: 11px; color: var(--text2); }
+.detail table th, .detail table td { padding: 3px 6px; font-size: 12px; }
+.empty { padding: 32px; text-align: center; color: var(--text2); }
+.hidden { display: none !important; }
+@media (max-width: 700px) { .header, main { padding-left: 16px; padding-right: 16px; } }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Experience Database</h1>
+  <nav><a href="/">Run</a><a href="/database" class="active">Database</a></nav>
+  <span class="stats" id="stats">loading ...</span>
+</div>
+<main>
+  <div class="filters">
+    <label class="muted">show <select id="fSaved"><option value="true" selected>saved runs</option><option value="false">unsaved runs</option></select></label>
+    <label class="muted"><span id="fTaskName">task</span> <select id="fTask"><option value="">all</option></select></label>
+    <span id="fConds"></span>
+    <label class="muted">result <select id="fResult"><option value="">all</option><option value="met">goal met</option><option value="not">goal not met</option><option value="other">stopped / error</option></select></label>
+    <input type="text" id="fText" placeholder="search label / run id / model" style="min-width:220px">
+    <span class="muted" id="count"></span>
+  </div>
+  <div class="filters" id="settings">
+    <span class="muted">Unsaved runs are deleted</span>
+    <input type="number" id="ttlHours" min="0" step="any" style="width:70px" aria-label="hours">
+    <span class="muted">hours after they end</span>
+    <label class="muted"><input type="checkbox" id="ttlNever"> never delete</label>
+    <button id="ttlApply">Apply</button>
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr id="head"></tr></thead>
+    <tbody id="rows"><tr><td class="empty">loading ...</td></tr></tbody>
+  </table></div>
+  <p class="muted" id="msg" style="margin-top:8px"></p>
+</main>
+<script>
+const API = window.location.origin;
+const qs = s => document.querySelector(s);
+const esc = s => { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; };
+const fmt = (v, d) => v == null || isNaN(v) ? 'n/a' : Number(v).toFixed(d);
+let cfg = null, runs = [], conds = [], ncol = 10;
+
+async function getJSON(url, opts) {
+  const r = await fetch(url, opts);
+  let j = null; try { j = await r.json(); } catch (_) { }
+  if (!r.ok) throw new Error((j && j.detail) || (r.status + ' ' + r.statusText));
+  return j;
+}
+const post = (url, body) => getJSON(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+const msg = (t, err) => { qs('#msg').innerHTML = t ? '<span class="' + (err ? 'bad' : 'muted') + '">' + esc(t) + '</span>' : ''; };
+const metricsCell = m => !m ? '<span class="muted">--</span>' :
+  cfg.ui.metrics.map(x => esc(x.label) + ' ' + fmt(m[x.key], x.key === 'bandwidth_MHz' ? 3 : 1) + ' ' + esc(x.unit)).join('<br>');
+const goalCell = g => !g ? '<span class="muted">--</span>' : Object.entries(g).map(([k, v]) => esc(k) + ' ' + esc(v)).join('<br>');
+function resultCell(r) {
+  if (r.status !== 'done') return '<span class="est">' + esc(r.status) + '</span>';
+  return r.success ? '<span class="ok">goal met</span>' : '<span class="bad">goal not met</span>';
+}
+
+async function load() {
+  try {
+    cfg = await getJSON(API + '/api/memory/config');
+    const s = cfg.stats;
+    qs('#stats').textContent = s.saved_runs + ' saved runs (' + s.saved_successful_runs + ' met their goal) | ' + s.indexed_states +
+      ' designs indexed | ' + s.unsaved_runs + ' unsaved (' + (s.unsaved_ttl_hours == null ? 'kept until removed' : 'deleted after ' + s.unsaved_ttl_hours + ' h') + ')';
+    if (document.activeElement !== qs('#ttlHours')) showTtl(s.unsaved_ttl_hours);
+    const d = await getJSON(API + '/api/memory/runs?limit=1000&saved=' + qs('#fSaved').value);
+    runs = d.runs;
+    conds = cfg.ui.condition_columns || [];
+    ncol = 9 + conds.length;
+    qs('#fTaskName').textContent = cfg.ui.task_column || 'task';
+    qs('#head').innerHTML = '<th></th><th>created (UTC)</th><th>' + esc(cfg.ui.task_column || 'task') + '</th>' +
+      conds.map(c => '<th>' + esc(c) + '</th>').join('') + '<th>goal</th><th>result</th><th>turns</th><th>best turn</th><th>model</th><th>label</th><th></th>';
+    const fill = (sel, vals) => {
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">all</option>' + vals.map(v => '<option>' + esc(v) + '</option>').join('');
+      if (vals.includes(cur)) sel.value = cur;
+    };
+    fill(qs('#fTask'), [...new Set(runs.map(r => r.task))].sort());
+    if (qs('#fConds').children.length !== conds.length) {
+      qs('#fConds').innerHTML = conds.map(c => '<label class="muted">' + esc(c) + ' <select data-cond="' + esc(c) + '"><option value="">all</option></select></label> ').join('');
+      qs('#fConds').querySelectorAll('select').forEach(x => x.addEventListener('change', render));
+    }
+    qs('#fConds').querySelectorAll('select').forEach(x => fill(x, [...new Set(runs.map(r => String((r.conditions || {})[x.dataset.cond] ?? 'n/a')))].sort()));
+    render();
+  } catch (e) { msg('load failed: ' + e.message, true); qs('#rows').innerHTML = '<tr><td colspan="' + ncol + '" class="empty">database unavailable</td></tr>'; }
+}
+
+function render() {
+  const t = qs('#fTask').value, res = qs('#fResult').value, txt = qs('#fText').value.trim().toLowerCase();
+  const saved = qs('#fSaved').value === 'true';
+  const cf = [...qs('#fConds').querySelectorAll('select')].filter(x => x.value).map(x => [x.dataset.cond, x.value]);
+  const rows = runs.filter(r => (!t || r.task === t) && cf.every(([c, v]) => String((r.conditions || {})[c] ?? 'n/a') === v) &&
+    (!res || (res === 'met' && r.status === 'done' && r.success) || (res === 'not' && r.status === 'done' && !r.success) || (res === 'other' && r.status !== 'done')) &&
+    (!txt || [r.label, r.run_id, (r.model || {}).model_name, (r.model || {}).note].join(' ').toLowerCase().includes(txt)));
+  qs('#count').textContent = rows.length + ' of ' + runs.length;
+  if (!rows.length) { qs('#rows').innerHTML = '<tr><td colspan="' + ncol + '" class="empty">' + (runs.length ? 'No runs match the filters.' : saved ? 'Nothing saved yet: run a design and press "Save to database".' : 'No unsaved runs.') + '</td></tr>'; return; }
+  qs('#rows').innerHTML = rows.map(r => {
+    const id = esc(r.run_id);
+    const acts = '<div class="actions">' +
+      '<button data-act="replay" data-id="' + id + '">Replay</button>' +
+      '<button data-act="detail" data-id="' + id + '">Details</button>' +
+      (r.status === 'running' ? '' : '<a href="' + API + '/api/memory/runs/' + encodeURIComponent(r.run_id) + '/raw"><button>Raw</button></a>') +
+      (saved ? '<button data-act="label" data-id="' + id + '">Label</button>' +
+               '<button data-act="pin" data-id="' + id + '" data-on="' + (r.pinned ? 0 : 1) + '">' + (r.pinned ? 'Unpin' : 'Pin') + '</button>' +
+               '<button data-act="unsave" data-id="' + id + '">Remove</button>'
+             : (r.status === 'running' ? '' : '<button class="primary" data-act="save" data-id="' + id + '">Save to database</button>')) +
+      '</div>';
+    return '<tr id="row-' + id + '"><td>' + (r.pinned ? '&#9733;' : '') + '</td><td class="num">' + esc(r.created_utc) + '</td>' +
+      '<td>' + esc(r.task) + (r.warm_start ? '<br><span class="muted">warm start</span>' : '') + '</td>' +
+      conds.map(c => '<td class="num">' + esc((r.conditions || {})[c] ?? 'n/a') + '</td>').join('') +
+      '<td class="num">' + goalCell(r.goal) + '</td>' +
+      '<td>' + resultCell(r) + '</td><td class="num">' + r.n_steps + '</td><td class="num">' + metricsCell(r.best_metrics) + '</td>' +
+      '<td>' + esc((r.model || {}).model_name || '') + '</td><td>' + esc(r.label) + '</td><td>' + acts + '</td></tr>';
+  }).join('');
+  qs('#rows').querySelectorAll('button[data-act]').forEach(b => b.onclick = () => act(b.dataset.act, b.dataset.id, b));
+}
+
+async function act(a, id, b) {
+  const base = API + '/api/memory/runs/' + encodeURIComponent(id);
+  try {
+    if (a === 'replay') { window.location.href = '/?replay=' + encodeURIComponent(id); return; }
+    if (a === 'detail') { return toggleDetail(id); }
+    if (a === 'label') { const t = window.prompt('Label for ' + id + ' (empty clears):', (runs.find(r => r.run_id === id) || {}).label || ''); if (t === null) return; await post(base + '/label', { label: t }); }
+    if (a === 'pin') await post(base + '/label', { pinned: b.dataset.on === '1' });
+    if (a === 'save') await post(base + '/save', {});
+    if (a === 'unsave') { if (!window.confirm('Remove ' + id + ' from the database? It goes back to the unsaved runs and is deleted after ' + cfg.stats.unsaved_ttl_hours + ' h unless saved again.')) return; await post(base + '/unsave', {}); }
+    msg(a + ' ' + id + ': done');
+    load();
+  } catch (e) { msg(a + ' failed: ' + e.message, true); }
+}
+
+async function toggleDetail(id) {
+  const open = document.getElementById('detail-' + id);
+  if (open) { open.remove(); return; }
+  const d = await getJSON(API + '/api/memory/runs/' + encodeURIComponent(id));
+  const r = d.run, keys = cfg.ui.metrics;
+  const states = d.states.map(s => '<tr><td>' + (s.step < 0 ? 'start' : s.step + 1) + '</td><td>' + (s.valid ? '' : '<span class="bad">invalid</span>') + '</td>' +
+    '<td>' + (s.success == null ? '' : s.success ? '<span class="ok">met</span>' : '') + '</td>' +
+    keys.map(x => '<td class="num">' + fmt(s.metrics[x.key], x.key === 'bandwidth_MHz' ? 3 : 1) + '</td>').join('') +
+    '<td>' + (s.valid && r.saved ? '<a href="/?warm=' + encodeURIComponent(id) + ':' + s.step + '">use as start</a>' : '') + '</td></tr>').join('');
+  const tr = document.createElement('tr');
+  tr.className = 'detail'; tr.id = 'detail-' + id;
+  tr.innerHTML = '<td></td><td colspan="' + (ncol - 1) + '"><div class="detail">' +
+    '<table><thead><tr><th>turn</th><th></th><th>goal</th>' + keys.map(x => '<th>' + esc(x.label) + ' (' + esc(x.unit) + ')</th>').join('') + '<th></th></tr></thead><tbody>' + states + '</tbody></table>' +
+    '<pre>' + esc(JSON.stringify({ run_id: r.run_id, status: r.status, error: r.error, task: r.task_ref, goal: r.goal, tolerances: r.tolerances,
+      warm_start: r.warm_start, model: r.model, code: r.code, raw: { path: r.raw_path, sha256: r.raw_sha256, bytes: r.raw_bytes, events: r.n_events },
+      saved_utc: r.saved_utc }, null, 1)) + '</pre></div></td>';
+  document.getElementById('row-' + id).after(tr);
+}
+
+// how long unsaved runs are kept: a setting of this database (applies to every page using it)
+function showTtl(h) {
+  qs('#ttlNever').checked = h == null;
+  qs('#ttlHours').disabled = h == null;
+  if (h != null) qs('#ttlHours').value = h;
+}
+async function applyTtl() {
+  let hours = null;
+  if (!qs('#ttlNever').checked) {
+    hours = parseFloat(qs('#ttlHours').value);
+    if (!(hours > 0)) { msg('hours must be a number > 0 (or tick "never delete")', true); return; }
+  }
+  const put = body => getJSON(API + '/api/memory/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  try {
+    const dry = await put({ unsaved_ttl_hours: hours, dry_run: true });
+    const n = dry.would_delete.length;
+    if (n && !window.confirm('With this setting, ' + n + ' unsaved run(s) that ended more than ' + hours +
+        ' h ago are deleted now, with their recorded trajectories. Continue?')) { showTtl(cfg.stats.unsaved_ttl_hours); return; }
+    const r = await put({ unsaved_ttl_hours: hours, dry_run: false });
+    msg('Unsaved runs are now ' + (r.unsaved_ttl_hours == null ? 'kept until removed' : 'deleted ' + r.unsaved_ttl_hours + ' h after they end') +
+        (r.deleted.length ? '; deleted ' + r.deleted.length + ' run(s).' : '.'));
+    await load();
+  } catch (e) { msg('setting not changed: ' + e.message, true); }
+}
+qs('#ttlNever').addEventListener('change', () => { qs('#ttlHours').disabled = qs('#ttlNever').checked; });
+qs('#ttlApply').addEventListener('click', applyTtl);
+
+['#fTask', '#fResult'].forEach(id => qs(id).addEventListener('change', render));
+qs('#fSaved').addEventListener('change', load);
+qs('#fText').addEventListener('input', render);
+load();
+</script>
+</body>
+</html>

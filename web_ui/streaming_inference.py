@@ -21,6 +21,7 @@ import shlex
 import shutil
 import sys
 import tempfile
+import threading
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional, Sequence, Tuple
 
@@ -115,11 +116,14 @@ def _write_tolerance_preset(spec: str, tolerances: Dict[str, Any], workdir: str)
     return f"{out}:{name}"
 
 
+_HYDRA_LOCK = threading.Lock()   # hydra's GlobalHydra is process-wide; the server calls this from several request threads
+
+
 def episode_config(overrides: Sequence[str] = ()):
     """env_evaluation.yaml + the evaluation protocol + `overrides` (later ones win)."""
     from hydra import compose, initialize_config_dir
 
-    with initialize_config_dir(config_dir=str(CONFIG_DIR), version_base=None):
+    with _HYDRA_LOCK, initialize_config_dir(config_dir=str(CONFIG_DIR), version_base=None):
         return compose(config_name="env_evaluation", overrides=protocol_overrides() + list(overrides))
 
 

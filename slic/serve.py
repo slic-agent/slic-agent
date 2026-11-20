@@ -19,6 +19,9 @@ def main(argv: List[str] | None = None) -> int:
     ap.add_argument("--topologies", default=None, help="schematic directory (default: data/topologies, from slic data --topologies)")
     ap.add_argument("--model-url", help="OpenAI-compatible endpoint of your model, e.g. http://127.0.0.1:8000/v1 (vllm serve)")
     ap.add_argument("--model-name", help="the model name that endpoint serves (vllm serve --served-model-name)")
+    ap.add_argument("--memory-dir", default=None, help="keep an experience database in this directory (created if missing; off by default): "
+                    "every run is recorded; runs you save are listed on the Database page, can be replayed, and their designs can "
+                    "be used as starting points for new goals; how long unsaved runs are kept is set on the Database page")
     a = ap.parse_args(argv)
     if a.tasks:
         os.environ["CIRCUITOP_DATASET_PATH"] = os.pathsep.join(resolve_path(p) for p in a.tasks)
@@ -32,6 +35,9 @@ def main(argv: List[str] | None = None) -> int:
         print(f"[slic] model endpoint {a.model_url} serves {a.model_name or 'local'}")
         os.environ["CIRCUITOP_LOCAL_MODEL_BASE_URL"] = a.model_url
         os.environ["CIRCUITOP_LOCAL_MODEL_NAME"] = a.model_name or "local"
+    if a.memory_dir:
+        os.environ["CIRCUITOP_MEMORY_DIR"] = os.path.abspath(os.path.join(REPO_ROOT, os.path.expanduser(a.memory_dir)))
+        print(f"[slic] experience database in {os.environ['CIRCUITOP_MEMORY_DIR']}")
     os.environ.setdefault("CIRCUIT_SIM_BACKEND", "ngspice")
     os.environ.setdefault("NGSPICE_BIN", "ngspice")
     import uvicorn
