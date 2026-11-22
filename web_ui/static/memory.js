@@ -52,6 +52,14 @@
       document.querySelectorAll('#inputSwitch button').forEach(b => b.addEventListener('click', cb));
     },
     onStartEdited: cb => { qs('#paramEditor').addEventListener('input', cb); },
+    // the starting sizes as they are now ({param: text}), to restore them later
+    readStart: () => Object.fromEntries([...document.querySelectorAll('#paramEditor input[data-param]')].map(i => [i.dataset.param, i.value])),
+    // put back sizes read with readStart (same topology)
+    restoreStart: snap => {
+      document.querySelectorAll('#paramEditor input[data-param]').forEach(i => { if (i.dataset.param in snap) i.value = snap[i.dataset.param]; });
+    },
+    // the task's own starting design (the page keeps it as each field's placeholder)
+    taskStart: () => { document.querySelectorAll('#paramEditor input[data-param]').forEach(i => { i.value = i.placeholder; }); },
     beginReplay: () => {
       resetUI(); setStatus('running');
       stepsData = []; bestNetlist = ''; bestStepIdx = -1;
@@ -71,7 +79,7 @@
   const esc = s => { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; };
   const fmt = (v, d) => v == null || isNaN(v) ? 'n/a' : Number(v).toFixed(d);
   const ttlText = h => h == null ? 'kept until removed' : 'kept ' + h + ' h';
-  let cfg = null, warm = null, replayCtrl = null, live = null, lastRun = null;
+  let cfg = null, warm = null, before = null, replayCtrl = null, live = null, lastRun = null;
 
   const css = document.createElement('style');
   css.textContent = `
@@ -192,14 +200,17 @@
     el.classList.remove('hidden');
     el.innerHTML = 'Next run starts from <b>' + esc(w.run_id) + '</b> turn ' + (w.step < 0 ? 'start' : w.step + 1) +
       (w.edited ? ' <span class="dm-est">(sizes edited: not checked against the stored design)</span>' : '') +
-      ' <button id="dmClearWarm">clear</button>';
-    $('#dmClearWarm').onclick = () => setWarm(null);
+      '<div class="dm-row">back to <button id="dmPrevStart" title="the starting sizes you had before Use as start">previous start</button>' +
+      '<button id="dmTaskStart" title="the task\'s own starting design">task start</button></div>';
+    $('#dmPrevStart').onclick = () => { H.restoreStart(before); before = null; setWarm(null); note('Starting sizes restored to the previous start.'); };
+    $('#dmTaskStart').onclick = () => { H.taskStart(); before = null; setWarm(null); note('Starting sizes reset to the task\'s own start.'); };
   }
-  H.onTaskChange(() => { if (warm && !H.selecting) { setWarm(null); note('Warm start cleared: the task changed.'); } });
+  H.onTaskChange(() => { before = null; if (warm && !H.selecting) { setWarm(null); note('Warm start cleared: the task changed.'); } });
   H.onStartEdited(() => { if (warm && !warm.edited) setWarm(Object.assign({}, warm, { edited: true })); });
   // the page calls this with every run request before it is sent: a chosen warm start is added to it
   H.onRunRequest(body => { if (warm) body.warm_start = { run_id: warm.run_id, step: warm.step }; });
   function useStart(runId, step, state) {
+    if (!warm) before = H.readStart();   // the sizes before the first Use as start, for "back to previous start"
     H.fillStart(state);
     setWarm({ run_id: runId, step: step, edited: false });
     note('Starting sizes filled from the stored design; press Run.');

@@ -47,6 +47,7 @@ server). Without it nothing is recorded and the page is as above. The code is in
   no model and no simulator.
 - **Nearest start.** "Find nearest start" ranks the saved designs of the same topology, node and vdd against the current
   goal and tolerances, and fills the chosen one into the starting sizes (`/?warm=<run_id>:<step>` from the Database tab).
+  The warm-start banner goes back with "previous start" (the sizes before Use as start) or "task start" (the task's own).
   The distance is the sum over specs of how far a design falls outside its tolerated bound, in decades (gain dB/20; power,
   bandwidth, phase margin log10 of the ratio), so exceeding a minimum costs nothing; "ranking weights" scale each spec.
   A candidate's pass is exact only when its run had the same goal and tolerances; otherwise it is an estimate. The new
